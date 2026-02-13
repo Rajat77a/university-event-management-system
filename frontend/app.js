@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 // Initialize localStorage if empty
 function initializeStorage() {
     if (!localStorage.getItem('users')) {
@@ -742,7 +742,7 @@ if (window.location.pathname.endsWith('admin.html')) {
 
 // Initialize on page load
 updateNavigation();
-=======
+
 // Initialize localStorage if empty
 function initializeStorage() {
     if (!localStorage.getItem('users')) {
@@ -1486,5 +1486,5 @@ if (window.location.pathname.endsWith('admin.html')) {
 
 // Initialize on page load
 updateNavigation();
->>>>>>> 1c35a0396a798108d93d237cff4cbcb526df7938
+
 setupLogout();
