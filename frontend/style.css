@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 * {
     margin: 0;
     padding: 0;
@@ -677,7 +677,7 @@ body {
 
 .modal-detail-item span {
     color: var(--text-secondary);
-=======
+
 * {
     margin: 0;
     padding: 0;
@@ -1356,5 +1356,6 @@ body {
 
 .modal-detail-item span {
     color: var(--text-secondary);
->>>>>>> 1c35a0396a798108d93d237cff4cbcb526df7938
+
+}
 }
