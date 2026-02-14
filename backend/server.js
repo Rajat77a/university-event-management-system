@@ -1,16 +1,13 @@
-// ================= IMPORTS =================
 const express = require("express");
 const cors = require("cors");
 const { Pool } = require("pg");
 
-// ================= CREATE APP =================
 const app = express();
-
-// ================= MIDDLEWARE =================
 app.use(cors());
 app.use(express.json());
 
 // ================= DATABASE CONNECTION =================
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
@@ -19,6 +16,7 @@ const pool = new Pool({
 });
 
 // ================= TEST ROUTE =================
+
 app.get("/", async (req, res) => {
   try {
     const result = await pool.query("SELECT NOW()");
@@ -34,8 +32,10 @@ app.get("/", async (req, res) => {
   }
 });
 
-// ================= REGISTER API =================
-app.post("/api/register", async (req, res) => {
+// ================= USERS API =================
+
+// Create User
+app.post("/api/users", async (req, res) => {
   const { name, email, phone, password, role } = req.body;
 
   try {
@@ -52,27 +52,7 @@ app.post("/api/register", async (req, res) => {
   }
 });
 
-// ================= LOGIN API =================
-app.post("/api/login", async (req, res) => {
-  const { email, password } = req.body;
-
-  try {
-    const result = await pool.query(
-      "SELECT * FROM users WHERE email = $1 AND password = $2",
-      [email, password]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(401).json({ error: "Invalid credentials" });
-    }
-
-    res.json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ================= GET USERS =================
+// Get All Users
 app.get("/api/users", async (req, res) => {
   try {
     const result = await pool.query(
@@ -84,7 +64,31 @@ app.get("/api/users", async (req, res) => {
   }
 });
 
-// ================= GET EVENTS =================
+// 🔹 TEMP TEST USER ROUTE (Browser Friendly)
+app.get("/create-test-user", async (req, res) => {
+  try {
+    const result = await pool.query(
+      `INSERT INTO users (name, email, phone, password, role)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING *`,
+      [
+        "Test User",
+        "test@example.com",
+        "1234567890",
+        "password123",
+        "student",
+      ]
+    );
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ================= EVENTS API =================
+
+// Get All Events
 app.get("/api/events", async (req, res) => {
   try {
     const result = await pool.query(`
@@ -100,7 +104,7 @@ app.get("/api/events", async (req, res) => {
   }
 });
 
-// ================= CREATE EVENT =================
+// Create Event
 app.post("/api/events", async (req, res) => {
   const { title, description, date, location, created_by } = req.body;
 
@@ -119,6 +123,7 @@ app.post("/api/events", async (req, res) => {
 });
 
 // ================= START SERVER =================
+
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
