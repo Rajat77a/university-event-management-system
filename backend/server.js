@@ -1,153 +1,90 @@
-const express = require("express");
-const cors = require("cors");
-const { Pool } = require("pg");
+const express = require('express');
+const cors = require('cors');
+const http = require('http');
+const { Server } = require('socket.io');
+require('dotenv').config();
+
+const connectDB = require('./config/db');
+const User = require('./models/User');
 
 const app = express();
-app.use(cors());
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: process.env.CLIENT_URL || '*',
+  },
+});
+
+app.use(
+  cors({
+    origin: process.env.CLIENT_URL || '*',
+  })
+);
 app.use(express.json());
 
-// ================= DATABASE =================
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/events', require('./routes/events'));
+app.use('/api/registrations', require('./routes/registrations'));
+app.use('/api/admin', require('./routes/admin'));
+
+let activeUsers = 0;
+
+io.on('connection', (socket) => {
+  activeUsers += 1;
+  io.emit('activeUsers', activeUsers);
+
+  socket.on('disconnect', () => {
+    activeUsers = Math.max(0, activeUsers - 1);
+    io.emit('activeUsers', activeUsers);
+  });
 });
 
-// ================= TEST =================
-app.get("/", async (req, res) => {
-  res.json({ message: "Backend Running 🚀" });
+app.get('/api/active-users', (req, res) => {
+  res.json({ success: true, activeUsers });
 });
 
-// ================= REGISTER =================
-app.post("/api/register", async (req, res) => {
-  const { name, email, phone, password, role } = req.body;
+app.use((req, res) => {
+  res.status(404).json({ success: false, message: 'Route not found' });
+});
 
-  try {
-    const result = await pool.query(
-      `INSERT INTO users (name, email, phone, password, role)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, name, email, role`,
-      [name, email, phone, password, role || "student"]
-    );
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || 'Internal server error',
+  });
+});
 
-    res.json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+const ensureDefaultAdmin = async () => {
+  if (!process.env.ADMIN_EMAIL || !process.env.ADMIN_PASSWORD) {
+    return;
   }
-});
 
-// ================= LOGIN =================
-app.post("/api/login", async (req, res) => {
-  const { email, password } = req.body;
-
-  try {
-    const result = await pool.query(
-      "SELECT * FROM users WHERE email=$1 AND password=$2",
-      [email, password]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(400).json({ error: "Invalid credentials" });
-    }
-
-    res.json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  const existingAdmin = await User.findOne({ email: process.env.ADMIN_EMAIL.toLowerCase() });
+  if (!existingAdmin) {
+    await User.create({
+      name: 'System Admin',
+      email: process.env.ADMIN_EMAIL.toLowerCase(),
+      password: process.env.ADMIN_PASSWORD,
+      role: 'admin',
+    });
+    console.log('Default admin account created');
   }
-});
+};
 
-// ================= EVENTS =================
-app.get("/api/events", async (req, res) => {
+const startServer = async () => {
   try {
-    const result = await pool.query(`
-      SELECT events.*, users.name AS creator_name
-      FROM events
-      JOIN users ON events.created_by = users.id
-      ORDER BY events.date ASC
-    `);
+    await connectDB();
+    await ensureDefaultAdmin();
 
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    const port = process.env.PORT || 5000;
+    server.listen(port, () => {
+      console.log(`Server running on port ${port}`);
+    });
+  } catch (error) {
+    console.error('Server startup failed:', error.message);
+    process.exit(1);
   }
-});
+};
 
-app.post("/api/events", async (req, res) => {
-  const { title, description, date, location, created_by } = req.body;
-
-  try {
-    const result = await pool.query(
-      `INSERT INTO events (title, description, date, location, created_by)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING *`,
-      [title, description, date, location, created_by]
-    );
-
-    res.json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ================= REGISTER FOR EVENT =================
-app.post("/api/events/:id/register", async (req, res) => {
-  const eventId = req.params.id;
-  const { user_id } = req.body;
-
-  try {
-    const result = await pool.query(
-      `INSERT INTO registrations (event_id, user_id)
-       VALUES ($1, $2)
-       RETURNING *`,
-      [eventId, user_id]
-    );
-
-    res.json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ================= GET REGISTRATIONS =================
-app.get("/api/registrations", async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT registrations.*, users.name, events.title
-      FROM registrations
-      JOIN users ON registrations.user_id = users.id
-      JOIN events ON registrations.event_id = events.id
-      ORDER BY registrations.created_at DESC
-    `);
-
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ================= ADMIN USERS =================
-app.get("/api/admin/users", async (req, res) => {
-  try {
-    const result = await pool.query("SELECT * FROM users ORDER BY id DESC");
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.delete("/api/admin/users/:id", async (req, res) => {
-  const id = req.params.id;
-
-  try {
-    await pool.query("DELETE FROM users WHERE id=$1", [id]);
-    res.json({ message: "User deleted" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ================= START SERVER =================
-const PORT = process.env.PORT || 5000;
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+startServer();
