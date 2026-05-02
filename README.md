@@ -151,10 +151,10 @@ Edit `backend/.env` with your values:
 ```env
 PORT=5000
 MONGODB_URI=mongodb://localhost:27017/unievents
-JWT_SECRET=replace-with-a-strong-secret
-ADMIN_EMAIL=admin@unievents.com
-ADMIN_PASSWORD=Admin@123
-ADMIN_REGISTRATION_SECRET=UNIEVENTS_ADMIN_2026
+JWT_SECRET=your-secret-key-here
+ADMIN_EMAIL=your-admin-email@example.com
+ADMIN_PASSWORD=your-secure-password
+ADMIN_REGISTRATION_SECRET=your-admin-secret
 ```
 
 | Variable                     | Description                                           |
@@ -346,12 +346,6 @@ On first startup the backend auto-creates an admin account using the `ADMIN_EMAI
 3. Commit your changes (`git commit -m 'Add amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
-
----
-
-## 📄 License
-
-This project is licensed under the **ISC License**.
 
 ---
 
